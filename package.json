@@ -7,7 +7,8 @@
   "dependencies": {
     "sjcl": "1.0.3",
     "tweetnacl": "0.13.1",
-    "yui": "^3.18.1"
+    "yui": "^3.18.1",
+    "chai": "^3.2.0"
   },
   "description": "macaroons: cookies with contextual caveats for decentralized authorization in the cloud",
   "devDependencies": {

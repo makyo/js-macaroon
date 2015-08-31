@@ -2,8 +2,9 @@
 'use strict';
 
 YUI.add("macaroon", function(Y) {
-	var sjcl = Y.sjcl;
-	var nacl = Y.nacl;
+	console.log('I AM LOADED!');
+	var sjcl = window.sjcl;
+	var nacl = window.nacl;
 	var exports = Y.namespace('macaroon');
 
 	// Shim slice on Uint8Array.
