@@ -8,9 +8,7 @@ mocha.ui('bdd');
 var macaroon;
 var globalConfig = {
 	modules: {
-		nacl: {fullpath: '../nacl-wrapped.js'},
-		sjcl: {fullpath: '../sjcl-wrapped.js'},
-		macaroon: {fullpath: '../macaroon.js'}
+		macaroon: {fullpath: '../build/yui-macaroon.js'}
 	}
 };
 
