@@ -6,4 +6,5 @@ and the [Python and C implementations](https://github.com/rescrv/libmacaroons),
 and including functionality to interact with third party caveat dischargers
 implemented by the [Go macaroon bakery](http://github.com/go-macaroon-bakery/macaroon-bakery).
 
-Currently implemented in Node only, but that's only a temporary limitation.
+Currently implemented in YUI module only, but that's only a temporary limitation.
+In order to use this, manual loading of tweetnacl and sjcl modules is required.

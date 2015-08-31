@@ -1,10 +1,18 @@
 /*jslint node: true, continue: true, eqeq: true, forin: true, nomen: true, plusplus: true, todo: true, vars: true, white: true */
 
-var assert = require("assert");
-var sjcl = require("sjcl");
-var macaroon = require("../macaroon");
-
 "use strict";
+
+mocha.reporter('html');
+mocha.ui('bdd');
+
+var macaroon;
+var globalConfig = {
+	modules: {
+		nacl: {fullpath: '../nacl-wrapped.js'},
+		sjcl: {fullpath: '../sjcl-wrapped.js'},
+		macaroon: {fullpath: '../macaroon.js'}
+	}
+};
 
 function strBitArray(s) {
 	return sjcl.codec.utf8String.toBits(s);
@@ -57,6 +65,15 @@ function makeMacaroons(mspecs) {
 }
 
 describe("macaroon", function() {
+
+	before(function(done) {
+      	YUI(globalConfig).use('macaroon', function(Y) {
+      		macaroon = Y.namespace('macaroon');
+      		console.log('MACAROON is', macaroon)
+            done();
+        });
+    });
+
 	it("should be created with the expected signature", function() {
 		var rootKey = strBitArray("secret");
 		var m = macaroon.newMacaroon(rootKey, "some id", "a location");
@@ -117,10 +134,10 @@ describe("macaroon", function() {
 		var trueCaveats = {}
 		var checked = {}
 		var tested = {};
-		for(i in caveats) {
-			m.addFirstPartyCaveat(caveats[i]);
-			trueCaveats[caveats[i]] = true
-		}
+		caveats.forEach(function(caveat) {
+			m.addFirstPartyCaveat(caveat);
+			trueCaveats[caveat] = true
+		})
 		assert.equal(sjcl.codec.hex.fromBits(m.signature()), "c934e6af642ee55a4e4cfc56e07706cf1c6c94dc2192e5582943cddd88dc99d8");
 		var obj = macaroon.export(m);
 		assert.deepEqual(obj, {
@@ -214,7 +231,7 @@ describe("import/export", function(){
 		assert.equal(ms.length, 2);
 		assert.equal(ms[0].id(), "id 0");
 		assert.equal(ms[1].id(), "id 1");
-		
+
 		var objs1 = macaroon.export(ms);
 		assert.deepEqual(objs1, objs);
 	});
