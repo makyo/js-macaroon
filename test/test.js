@@ -67,7 +67,6 @@ describe('macaroon', function() {
     before(function(done) {
         YUI(globalConfig).use('macaroon', function(Y) {
             macaroon = Y.namespace('macaroon');
-            console.log('MACAROON is', macaroon);
             done();
         });
     });

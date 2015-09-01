@@ -414,20 +414,19 @@ function macaroon() {
     rootKey = makeKey(rootKey);
     var i, used = {};
     discharges = discharges || [];
-    discharges.forEach(function(value) {
-        used[value] = 0;
+    discharges.forEach(function(_, index) {
+        used[index] = 0;
     });
     this._verify(this._signature, rootKey, check, discharges, used);
-    for (i in discharges) {
-      var dm = discharges[i];
-      if (used[i] === 0) {
-        throw new Error('discharge macaroon ' + quote(dm.id()) + ' was not used');
-      }
-      if (used[i] !== 1) {
-        // Should be impossible because of check in verify1, but be defensive.
-        throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once');
-      }
-    }
+    discharges.forEach(function(dm, i) {
+        if (used[i] === 0) {
+            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was not used');
+        }
+        if (used[i] !== 1) {
+            // Should be impossible because of check in verify1, but be defensive.
+            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once');
+        }
+    });
   };
 
   Macaroon.prototype._verify = function(rootSig, rootKey, check, discharges, used) {
