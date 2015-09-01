@@ -1,5 +1,5 @@
 {
-  "name": "macaroon",
+  "name": "js-macaroon",
   "author": "Juju UI Engineering Team",
   "bugs": {
     "url": "http://github.com/juju/js-macaroon/issues"
@@ -16,7 +16,12 @@
     "mocha": "2.3.0"
   },
   "files": [
+    "LICENSE",
+    "Makefile",
+    "README",
     "macaroon.js",
+    "modules.js",
+    "templates",
     "test"
   ],
   "homepage": "http://github.com/juju/js-macaroon",
@@ -25,13 +30,14 @@
     "cookie"
   ],
   "license": "BSD-3-Clause",
-  "main": "macaroon.js",
+  "main": "build/node-macaroon.js",
   "repository": {
     "type": "git",
     "url": "http://github.com/juju/js-macaroon.git"
   },
   "scripts": {
-    "test": "node_modules/mocha/bin/mocha test/test.js"
+    "test": "node_modules/mocha/bin/mocha test/test.js",
+    "postinstall": "make build"
   },
-  "version": "0.0.4"
+  "version": "0.0.6"
 }
