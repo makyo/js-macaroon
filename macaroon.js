@@ -411,22 +411,23 @@ function macaroon() {
   //
   // Verify throws an exception if the verification fails.
   Macaroon.prototype.verify = function(rootKey, check, discharges) {
-    discharges = discharges || [];
     rootKey = makeKey(rootKey);
-    var i, used = {};
-    for (i = 0; i < discharges.length; i++) {
-        used[discharges[i]] = 0;
+    var used = [];
+    var i;
+    for (i in discharges) {
+      used[i] = 0;
     }
     this._verify(this._signature, rootKey, check, discharges, used);
-    discharges.forEach(function(dm) {
-        if (used[dm] === 0) {
-            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was not used');
-        }
-        if (used[dm] !== 1) {
-            // Should be impossible because of check in verify1, but be defensive.
-            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once');
-        }
-    });
+    for (i in discharges) {
+      var dm = discharges[i];
+      if (used[i] === 0) {
+        throw new Error('discharge macaroon ' + quote(dm.id()) + ' was not used');
+      }
+      if (used[i] !== 1) {
+        // Should be impossible because of check in verify1, but be defensive.
+        throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once');
+      }
+    }
   };
 
   Macaroon.prototype._verify = function(rootSig, rootKey, check, discharges, used) {
