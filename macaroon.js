@@ -1,12 +1,12 @@
-/*jslint indent: 2, node: true, plusplus: true, todo: true, vars: true */
-/*global Uint8Array */
+/*jslint indent: 2, node: true, nomen: true, plusplus: true, todo: true, vars: true, white: true */
+/*global Uint8Array,nacl,sjcl */
 function macaroon() {
   'use strict';
   var exports = {};
 
   // Shim slice on Uint8Array.
   if (Uint8Array.prototype.slice === undefined) {
-    Uint8Array.prototype.slice = function (begin, end) {
+    Uint8Array.prototype.slice = function(begin, end) {
       // IE < 9 gets unhappy with an undefined end argument
       end = (end !== undefined) ? end : this.length;
 
@@ -19,7 +19,7 @@ function macaroon() {
       start = (start >= 0) ? start : Math.max(0, len + start);
 
       // Handle negative value for "end"
-      var upTo = (typeof end == 'number') ? Math.min(end, len) : len;
+      var upTo = (typeof end === 'number') ? Math.min(end, len) : len;
       if (end < 0) {
         upTo = len + end;
       }
@@ -48,8 +48,8 @@ function macaroon() {
   // is a string, and fails with an exception including
   // "what" if it is not.
   function assertString(obj, what) {
-    if(typeof obj !== "string"){
-      throw new Error("invalid " + what + ": " + obj);
+    if (typeof obj !== 'string') {
+      throw new Error('invalid ' + what + ': ' + obj);
     }
   }
 
@@ -58,8 +58,8 @@ function macaroon() {
   // "what" if it is not.
   function assertBitArray(obj, what) {
     // TODO is a more specific test than this possible?
-    if(!(obj instanceof Array)){
-      throw new Error("invalid " + what + ": " + obj);
+    if (!(obj instanceof Array)) {
+      throw new Error('invalid ' + what + ': ' + obj);
     }
   }
 
@@ -95,20 +95,21 @@ function macaroon() {
 
   // newNonce returns a new random nonce as a Uint8Array.
   var newNonce = function() {
-    var nonce =  nacl.randomBytes(nonceLen);
-    // XXX provide a way to mock this out
-    for(var i = 0; i < nonce.length; i++) {
+    var i;
+    var nonce = nacl.randomBytes(nonceLen);
+    // XXX provide a way to mock this out.
+    for (i = 0; i < nonce.length; i++) {
       nonce[i] = 0;
     }
     return nonce;
   };
 
-  var keyGen = sjcl.codec.utf8String.toBits("macaroons-key-generator")
+  var keyGen = sjcl.codec.utf8String.toBits('macaroons-key-generator');
 
   // makeKey returns a fixed length key suitable for use as a nacl secretbox
   // key. It accepts and returns a sjcl bitArray.
   function makeKey(variableKey) {
-    return keyedHash(keyGen, variableKey)
+    return keyedHash(keyGen, variableKey);
   }
 
   // encrypt encrypts the given plaintext with the given key.
@@ -133,15 +134,17 @@ function macaroon() {
     var nonce = ciphertext.slice(0, nonceLen);
     ciphertext = ciphertext.slice(nonceLen);
     var text = nacl.secretbox.open(ciphertext, nonce, key);
-    if(text === false){
-      throw new Error("decryption failed");
+    if (text === false) {
+      throw new Error('decryption failed');
     }
     return uint8ArrayToBitArray(text);
   }
 
   // Macaroon defines the macaroon object. It is not exported
   // as a constructor - newMacaroon should be used instead.
-  function Macaroon() {}
+  var Macaroon = function() {
+    return this;
+  };
 
   // newMacaroon returns a new macaroon with the given
   // root key, identifier and location.
@@ -150,10 +153,10 @@ function macaroon() {
   exports.newMacaroon = function(rootKey, id, loc) {
     var m = new Macaroon();
     m._caveats = [];
-    assertString(loc, "macaroon location");
-    assertString(id, "macaroon identifier");
-    assertBitArray(rootKey, "macaroon root key");
-    rootKey = makeKey(rootKey)
+    assertString(loc, 'macaroon location');
+    assertString(id, 'macaroon identifier');
+    assertBitArray(rootKey, 'macaroon root key');
+    rootKey = makeKey(rootKey);
     m._location = loc;
     m._identifier = id;
     m._signature = keyedHash(rootKey, sjcl.codec.utf8String.toBits(id));
@@ -168,75 +171,63 @@ function macaroon() {
   // JSON to a macaroon. It also accepts an array of objects,
   // returning the resulting array of macaroons.
   exports.import = function(obj) {
-    var i;
-    if(obj.constructor === Array){
-      var result = [];
-      for(i in obj){
-        result[i] = exports.import(obj[i]);
-      }
-      return result;
+    if (obj.constructor === Array) {
+      return obj.map(function(value) {
+        return exports.import(value);
+      });
     }
     var m = new Macaroon();
     m._signature = sjcl.codec.hex.toBits(obj.signature);
-    assertString(obj.location, "macaroon location");
+    assertString(obj.location, 'macaroon location');
     m._location = obj.location;
-    assertString(obj.identifier, "macaroon identifier");
+    assertString(obj.identifier, 'macaroon identifier');
     m._identifier = obj.identifier;
-
-    m._caveats = [];
-    for(i in obj.caveats){
-      var jsonCav = obj.caveats[i];
-      var cav = {
-        _identifier: null,
-        _location: null,
-        _vid: null,
-      };
-      if(jsonCav.cl !== undefined){
-        assertString(jsonCav.cl, "caveat location");
-        cav._location = jsonCav.cl;
-      }
-      if(jsonCav.vid !== undefined) {
-        assertString(jsonCav.vid, "caveat verification id");
-        // Use URL encoding.
-        cav._vid = sjcl.codec.base64.toBits(jsonCav.vid, true);
-      }
-      assertString(jsonCav.cid, "caveat id");
-      cav._identifier = jsonCav.cid;
-      m._caveats[i] = cav;
-    }
+    m._caveats = obj.caveats.map(function(jsonCav) {
+        var cav = {
+            _identifier: null,
+            _location: null,
+            _vid: null,
+        };
+        if (jsonCav.cl !== undefined) {
+            assertString(jsonCav.cl, 'caveat location');
+            cav._location = jsonCav.cl;
+        }
+        if (jsonCav.vid !== undefined) {
+            assertString(jsonCav.vid, 'caveat verification id');
+            // Use URL encoding.
+            cav._vid = sjcl.codec.base64.toBits(jsonCav.vid, true);
+        }
+        assertString(jsonCav.cid, 'caveat id');
+        cav._identifier = jsonCav.cid;
+        return cav;
+    });
     return m;
   };
 
   // export converts a macaroon or array of macaroons
   // to the exported object form, suitable for encoding as JSON.
   exports.export = function(m) {
-    var i;
-    if(m.constructor === Array){
-      var result = [];
-      for(i in m){
-        result[i] = exports.export(m[i]);
-      }
-      return result;
+    if (m.constructor === Array) {
+        return m.map(function(value) {
+            return exports.export(value);
+        });
     }
-    var obj = {
-      location: m._location,
-      identifier: m._identifier,
-      signature: sjcl.codec.hex.fromBits(m._signature),
-      caveats: [],
+    return {
+        location: m._location,
+        identifier: m._identifier,
+        signature: sjcl.codec.hex.fromBits(m._signature),
+        caveats: m._caveats.map(function(cav) {
+            var cavObj = {
+                cid: cav._identifier,
+            };
+            if (cav._vid !== null) {
+                // Use URL encoding and do not append "=" characters.
+                cavObj.vid = sjcl.codec.base64.fromBits(cav._vid, true, true);
+                cavObj.cl = cav._location;
+            }
+            return cavObj;
+        })
     };
-    for(i in m._caveats){
-      var cav = m._caveats[i];
-      var cavObj = {
-        cid: cav._identifier,
-      };
-      if(cav._vid !== null){
-        // Use URL encoding and do not append "=" characters.
-        cavObj.vid = sjcl.codec.base64.fromBits(cav._vid, true, true);
-        cavObj.cl = cav._location;
-      }
-      obj.caveats[i] = cavObj;
-    }
-    return obj;
   };
 
   // discharge gathers discharge macaroons for all the third party caveats
@@ -263,8 +254,8 @@ function macaroon() {
     var errorCalled = false;
     var firstPartyLocation = m.location();
     var dischargeCaveats;
-    var dischargedCallback = function(dm){
-      if(errorCalled){
+    var dischargedCallback = function(dm) {
+      if (errorCalled) {
         return;
       }
       dm.bind(primarySig);
@@ -273,28 +264,26 @@ function macaroon() {
       dischargeCaveats(dm);
     };
     var dischargedErrorCallback = function(err) {
-      if(!errorCalled){
+      if (!errorCalled) {
         onError(err);
         errorCalled = true;
       }
     };
-    dischargeCaveats = function(m){
-      var i;
-      for(i in m._caveats){
-        var cav = m._caveats[i];
-        if(cav._vid === null){
-          continue;
+    dischargeCaveats = function(m) {
+      var cav, i;
+      for (i = 0; i < m._caveats.length; i++) {
+        cav = m._caveats[i];
+        if (cav._vid !== null) {
+            getDischarge(
+                firstPartyLocation,
+                cav._location,
+                cav._identifier,
+                dischargedCallback,
+                dischargedErrorCallback);
+            pendingCount++;
         }
-        getDischarge(
-          firstPartyLocation,
-          cav._location,
-          cav._identifier,
-          dischargedCallback,
-          dischargedErrorCallback
-        );
-        pendingCount++;
       }
-      if(pendingCount === 0){
+      if (pendingCount === 0) {
         onOk(discharges);
         return;
       }
@@ -302,16 +291,26 @@ function macaroon() {
     dischargeCaveats(m);
   };
 
+
+  function keyedHash2(key, d1, d2) {
+    if (d1 === null) {
+      return keyedHash(key, d2);
+    }
+    var h1 = keyedHash(key, d1);
+    var h2 = keyedHash(key, d2);
+    return keyedHash(key, sjcl.bitArray.concat(h1, h2));
+  }
+
   // 32 zero bytes.
-  var zeroKey = sjcl.codec.hex.toBits("0000000000000000000000000000000000000000000000000000000000000000")
+  var zeroKey = sjcl.codec.hex.toBits('0000000000000000000000000000000000000000000000000000000000000000');
 
   // bindForRequest binds the given macaroon
   // to the given signature of its parent macaroon.
   function bindForRequest(rootSig, dischargeSig) {
-    if(sjcl.bitArray.equal(rootSig, dischargeSig)){
+    if (sjcl.bitArray.equal(rootSig, dischargeSig)) {
       return rootSig;
     }
-    return keyedHash2(zeroKey, rootSig, dischargeSig)
+    return keyedHash2(zeroKey, rootSig, dischargeSig);
   }
 
   // bound returns a copy of the macaroon prepared for
@@ -323,6 +322,7 @@ function macaroon() {
 
   // caveats returns a list of all the caveats in the macaroon.
   Macaroon.prototype.getCaveats = function() {
+    return this._caveats;
   };
 
   // signature returns the macaroon's signature as a buffer.
@@ -367,9 +367,9 @@ function macaroon() {
   // The root key must be an sjcl bitArray; the other arguments
   // must be strings.
   Macaroon.prototype.addThirdPartyCaveat = function(rootKey, caveatId, loc) {
-    assertBitArray(rootKey, "caveat root key");
-    assertString(caveatId, "caveat id");
-    assertString(loc, "caveat location");
+    assertBitArray(rootKey, 'caveat root key');
+    assertString(caveatId, 'caveat id');
+    assertString(loc, 'caveat location');
     var verificationId = encrypt(this._signature, makeKey(rootKey));
     this.addCaveat(caveatId, verificationId, loc);
   };
@@ -380,34 +380,25 @@ function macaroon() {
     this.addCaveat(caveatId, null, null);
   };
 
-  function keyedHash2(key, d1, d2) {
-    if(d1 === null){
-      return keyedHash(key, d2)
-    }
-    var h1 = keyedHash(key, d1)
-    var h2 = keyedHash(key, d2)
-    return keyedHash(key, sjcl.bitArray.concat(h1, h2))
-  }
-
   // addCaveat adds a first or third party caveat. The caveat id must be
   // a string. For a first party caveat, the verification id and the
   // location must be null, otherwise the verification id must be
   // a sjcl bitArray and the location must be a string.
   Macaroon.prototype.addCaveat = function(caveatId, verificationId, loc) {
-    assertString(caveatId, "macaroon caveat id");
+    assertString(caveatId, 'macaroon caveat id');
     var cav = {
       _identifier: caveatId,
       _vid: null,
       _location: null,
     };
-    if(verificationId !== null){
-      assertString(loc, "macaroon caveat location");
-      assertBitArray(verificationId, "macaroon caveat verification id");
+    if (verificationId !== null) {
+      assertString(loc, 'macaroon caveat location');
+      assertBitArray(verificationId, 'macaroon caveat verification id');
       cav._location = loc;
       cav._vid = verificationId;
     }
     this._caveats.push(cav);
-    this._signature = keyedHash2(this._signature, verificationId, sjcl.codec.utf8String.toBits(caveatId))
+    this._signature = keyedHash2(this._signature, verificationId, sjcl.codec.utf8String.toBits(caveatId));
   };
 
   // Verify verifies that the receiving macaroon is valid.
@@ -420,62 +411,61 @@ function macaroon() {
   //
   // Verify throws an exception if the verification fails.
   Macaroon.prototype.verify = function(rootKey, check, discharges) {
-    rootKey = makeKey(rootKey)
-    var used = [];
-    var i;
-    for(i in discharges){
-      used[i] = 0;
+    discharges = discharges || [];
+    rootKey = makeKey(rootKey);
+    var i, used = {};
+    for (i = 0; i < discharges.length; i++) {
+        used[discharges[i]] = 0;
     }
     this._verify(this._signature, rootKey, check, discharges, used);
-    for(i in discharges){
-      var dm = discharges[i];
-      if(used[i] === 0){
-        throw new Error("discharge macaroon " + quote(dm.id()) + " was not used");
-      }
-      if(used[i] !== 1){
-        // Should be impossible because of check in verify1, but be defensive.
-        throw new Error("discharge macaroon " + quote(dm.id()) + " was used more than once");
-      }
-    }
+    discharges.forEach(function(dm) {
+        if (used[dm] === 0) {
+            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was not used');
+        }
+        if (used[dm] !== 1) {
+            // Should be impossible because of check in verify1, but be defensive.
+            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once');
+        }
+    });
   };
 
   Macaroon.prototype._verify = function(rootSig, rootKey, check, discharges, used) {
-    var caveatSig = keyedHash(rootKey,  sjcl.codec.utf8String.toBits(this.id()));
+    var caveatSig = keyedHash(rootKey, sjcl.codec.utf8String.toBits(this.id()));
     var i, di;
-    for(i in this._caveats){
+    for (i in this._caveats) {
       var cav = this._caveats[i];
-      if(cav._vid !== null){
+      if (cav._vid !== null) {
         var cavKey = decrypt(caveatSig, cav._vid);
         var found = false;
-        for(di in discharges){
+        for (di in discharges) {
           var dm = discharges[di];
-          if(dm.id() !== cav._identifier) {
+          if (dm.id() !== cav._identifier) {
             continue;
           }
           found = true;
           // It's important that we do this before calling _verify,
           // as it prevents potentially infinite recursion.
           used[di]++;
-          if(used[di] > 1){
-            throw new Error("discharge macaroon " + quote(dm.id()) + " was used more than once ");
+          if (used[di] > 1) {
+            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once ');
           }
           dm._verify(rootSig, cavKey, check, discharges, used);
           break;
         }
-        if(!found){
-          throw new Error("cannot find discharge macaroon for caveat " + quote(cav._identifier));
+        if (!found) {
+          throw new Error('cannot find discharge macaroon for caveat ' + quote(cav._identifier));
         }
       } else {
         var err = check(cav._identifier);
-        if(err){
+        if (err) {
           throw new Error(err);
         }
       }
-      caveatSig = keyedHash2(caveatSig, cav._vid, cav._identifier)
+      caveatSig = keyedHash2(caveatSig, cav._vid, cav._identifier);
     }
     var boundSig = bindForRequest(rootSig, caveatSig);
-    if(!sjcl.bitArray.equal(boundSig, this._signature)){
-      throw new Error("signature mismatch after caveat verification");
+    if (!sjcl.bitArray.equal(boundSig, this._signature)) {
+      throw new Error('signature mismatch after caveat verification');
     }
   };
   return exports;
