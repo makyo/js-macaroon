@@ -1,4 +1,5 @@
 /*jslint indent: 4, node: true, nomen: true, plusplus: true, todo: true, vars: true, white: true */
+/*global assert,before,describe,it,mocha,sjcl,YUI */
 
 'use strict';
 
@@ -21,6 +22,7 @@ function never() {
 }
 
 function alwaysOK() {
+    return;
 }
 
 // makeMacaroon makes a set of macaroon from the given macaroon specifications.
@@ -35,30 +37,26 @@ function alwaysOK() {
 //  - location: the caveat location (string, optional)
 //  - condition: the caveat condition (string)
 function makeMacaroons(mspecs) {
-    var macaroons = [];
-    var i;
-    for (i in mspecs) {
-        var j;
-        var mspec = mspecs[i];
+    var macaroons = mspecs.map(function(mspec) {
         if (mspec.location === undefined) {
             mspec.location = '';
         }
         var m = macaroon.newMacaroon(strBitArray(mspec.rootKey), mspec.id, mspec.location);
-        for (j in mspec.caveats) {
-            var cav = mspec.caveats[j];
+        var caveats = mspec.caveats || [];
+        caveats.forEach(function(cav) {
             if (cav.location !== undefined) {
                 m.addThirdPartyCaveat(strBitArray(cav.rootKey), cav.condition, cav.location);
             } else {
                 m.addFirstPartyCaveat(cav.condition);
             }
-        }
-        macaroons.push(m);
-    }
+        });
+        return m;
+    });
     var primary = macaroons[0];
     var discharges = macaroons.slice(1);
-    for (i in discharges) {
-        discharges[i].bind(primary.signature());
-    }
+    discharges.forEach(function(discharge) {
+        discharge.bind(primary.signature());
+    });
     return [strBitArray(mspecs[0].rootKey), primary, discharges];
 }
 
@@ -124,12 +122,10 @@ describe('macaroon', function() {
     });
 
     it('should allow adding first party caveats', function() {
-        var cav;
         var rootKey = strBitArray('secret');
         var m = macaroon.newMacaroon(rootKey, 'some id', 'a location');
         var caveats = ['a caveat', 'another caveat'];
         var trueCaveats = {};
-        var checked = {};
         var tested = {};
         caveats.forEach(function(caveat) {
             m.addFirstPartyCaveat(caveat);
@@ -588,18 +584,14 @@ var verifyTests = [{
 }];
 
 describe('verify', function() {
-    var i;
-    for (i in verifyTests) {
-        var test = verifyTests[i];
-        it('should work with ' + test.about, function(test) {
+    verifyTests.forEach(function(test) {
+        it('should work with ' + test.about, (function(test) {
             return function() {
-                var j;
                 var keyMac = makeMacaroons(test.macaroons);
                 var rootKey = keyMac[0];
                 var primary = keyMac[1];
                 var discharges = keyMac[2];
-                for (j in test.conditions) {
-                    var cond = test.conditions[j];
+                test.conditions.forEach(function(cond) {
                     var check = function(cav) {
                         if (cond.conditions[cav]) {
                             return null;
@@ -622,10 +614,10 @@ describe('verify', function() {
                     } else {
                         primary.verify(rootKey, check, discharges);
                     }
-                }
+                });
             };
-        }(test));
-    }
+        }(test)));
+    });
 });
 
 var externalRootKey = strBitArray('root-key');
@@ -677,7 +669,9 @@ var externalMacaroons = [
 describe('verify external third party macaroons', function() {
     it('should verify correctly', function() {
         var ms = macaroon.import(externalMacaroons);
-        ms[0].verify(externalRootKey, function() {}, ms.slice(1));
+        ms[0].verify(externalRootKey, function() {
+            return;
+        }, ms.slice(1));
     });
 });
 
@@ -692,7 +686,7 @@ describe('discharge', function() {
         var onOk = function(ms) {
             result = ms;
         };
-        var onErr = function(err) {
+        var onErr = function() {
             throw 'onErr called unexpectedly';
         };
         macaroon.discharge(m, getDischarge, onOk, onErr);
@@ -705,18 +699,19 @@ describe('discharge', function() {
         var totalRequired = 40;
         var id = 1;
         var addCaveats = function(m) {
-            var i;
+            var i, cid;
             for (i = 0; i < 2; i++) {
                 if (totalRequired === 0) {
                     break;
                 }
-                var cid = 'id' + id;
+                cid = 'id' + id;
                 m.addThirdPartyCaveat(strBitArray('root key ' + cid), cid, 'somewhere');
                 id++;
                 totalRequired--;
             }
         };
         addCaveats(m0);
+        /*jslint unparam: true */
         var getDischarge = function(loc, thirdPartyLoc, cond, onOK, onErr) {
             assert.equal(loc, 'location0');
             var m = macaroon.newMacaroon(strBitArray('root key ' + cond), cond, '');
@@ -732,8 +727,7 @@ describe('discharge', function() {
             throw new Error('error callback called unexpectedly: ' + err);
         });
         while (queued.length > 0) {
-            var f = queued.shift();
-            f();
+            queued.shift()();
         }
         assert.notEqual(discharges, null);
         assert.equal(discharges.length, 41);
