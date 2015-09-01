@@ -412,11 +412,11 @@ function macaroon() {
   // Verify throws an exception if the verification fails.
   Macaroon.prototype.verify = function(rootKey, check, discharges) {
     rootKey = makeKey(rootKey);
-    var used = [];
-    var i;
-    for (i in discharges) {
-      used[i] = 0;
-    }
+    var i, used = {};
+    discharges = discharges || [];
+    discharges.forEach(function(value) {
+        used[value] = 0;
+    });
     this._verify(this._signature, rootKey, check, discharges, used);
     for (i in discharges) {
       var dm = discharges[i];
