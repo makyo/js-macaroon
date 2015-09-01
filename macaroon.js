@@ -414,9 +414,9 @@ function macaroon() {
     rootKey = makeKey(rootKey);
     var i, used = {};
     discharges = discharges || [];
-    discharges.forEach(function(_, index) {
-        used[index] = 0;
-    });
+    for (i = 0; i < discharges.length; i++) {
+        used[i] = 0;
+    }
     this._verify(this._signature, rootKey, check, discharges, used);
     discharges.forEach(function(dm, i) {
         if (used[i] === 0) {
@@ -431,26 +431,24 @@ function macaroon() {
 
   Macaroon.prototype._verify = function(rootSig, rootKey, check, discharges, used) {
     var caveatSig = keyedHash(rootKey, sjcl.codec.utf8String.toBits(this.id()));
-    var i, di;
-    for (i in this._caveats) {
-      var cav = this._caveats[i];
+    this._caveats.forEach(function(cav) {
       if (cav._vid !== null) {
         var cavKey = decrypt(caveatSig, cav._vid);
         var found = false;
-        for (di in discharges) {
-          var dm = discharges[di];
-          if (dm.id() !== cav._identifier) {
-            continue;
+        var di, dm;
+				for (di = 0; di < discharges.length; di++) {
+					dm = discharges[di];
+          if (dm.id() === cav._identifier) {
+						found = true;
+	          // It's important that we do this before calling _verify,
+	          // as it prevents potentially infinite recursion.
+	          used[di]++;
+	          if (used[di] > 1) {
+	            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once ');
+	          }
+	          dm._verify(rootSig, cavKey, check, discharges, used);
+	          break;
           }
-          found = true;
-          // It's important that we do this before calling _verify,
-          // as it prevents potentially infinite recursion.
-          used[di]++;
-          if (used[di] > 1) {
-            throw new Error('discharge macaroon ' + quote(dm.id()) + ' was used more than once ');
-          }
-          dm._verify(rootSig, cavKey, check, discharges, used);
-          break;
         }
         if (!found) {
           throw new Error('cannot find discharge macaroon for caveat ' + quote(cav._identifier));
@@ -462,7 +460,7 @@ function macaroon() {
         }
       }
       caveatSig = keyedHash2(caveatSig, cav._vid, cav._identifier);
-    }
+    });
     var boundSig = bindForRequest(rootSig, caveatSig);
     if (!sjcl.bitArray.equal(boundSig, this._signature)) {
       throw new Error('signature mismatch after caveat verification');

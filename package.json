@@ -20,7 +20,6 @@
     "Makefile",
     "README",
     "macaroon.js",
-    "modules.js",
     "templates",
     "test"
   ],
